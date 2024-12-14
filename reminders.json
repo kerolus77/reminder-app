@@ -1,16 +1,9 @@
 [
     {
-        "id": "928f7d95-8ee9-4ef1-97fb-e7a82d2841ee",
-        "title": "dd",
-        "description": "sd",
-        "trigger_time": "2024-12-13 20:45",
+        "id": "da87b976-6af6-46b3-b6d1-d3d6a08fd12a",
+        "title": "kero",
+        "description": "samy",
+        "trigger_time": "2024-12-14 23:42",
         "is_active": false
-    },
-    {
-        "id": "1b8b8a34-9a16-4a92-984d-c97a3dbf5f99",
-        "title": "test",
-        "description": "test12",
-        "trigger_time": "2024-12-13 20:46",
-        "is_active": true
     }
 ]

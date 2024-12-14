@@ -9,8 +9,7 @@ from datetime import datetime
 import uuid
 import queue
 from playsound import playsound
-import winsound
-import pygame
+
 
 REMINDERS_FILE = "reminders.json"
 class Reminder:
@@ -142,6 +141,7 @@ class ReminderApp:
         self.description_icon= ImageTk.PhotoImage(Image.open("des.png").resize((20, 20)))
         self.date_icon= ImageTk.PhotoImage(Image.open("calendar.png").resize((20, 20)))
         self.clock_icon= ImageTk.PhotoImage(Image.open("clock.png").resize((20, 20)))
+        self.edit_icon = ImageTk.PhotoImage(Image.open("document.png").resize((20, 20)))
 
     def _show_screen(self, screen):
         """
@@ -262,7 +262,7 @@ class ReminderApp:
 
     def _add_reminder(self):
         """
-        Add a new reminder from input fields.
+        Add a new reminder or update an existing one from input fields.
         """
         title = self.title_entry.get().strip()
         description = self.description_entry.get("1.0", tk.END).strip()
@@ -282,16 +282,26 @@ class ReminderApp:
                 messagebox.showerror("Error", "You cannot set a reminder in the past.")
                 return
 
-            # Create the reminder
-            reminder = Reminder(title, description, trigger_time)
-
             with self.reminders_lock:
-                self.reminders[reminder.id] = reminder
+                if hasattr(self, 'editing_reminder_id') and self.editing_reminder_id:
+                    # Editing an existing reminder
+                    reminder_id = self.editing_reminder_id
+                    reminder = self.reminders[reminder_id]
+                    reminder.title = title
+                    reminder.description = description
+                    reminder.trigger_time = trigger_time
+                    reminder.is_active = True  # Reset to active
+                    self.editing_reminder_id = None  # Reset editing state
+                    print(f"Reminder {reminder_id} updated successfully.")
+                else:
+                    # Adding a new reminder
+                    reminder = Reminder(title, description, trigger_time)
+                    self.reminders[reminder.id] = reminder
 
-            # Start monitoring thread
-            thread = threading.Thread(target=self._monitor_reminder, args=(reminder,), daemon=True)
-            self.monitoring_threads[reminder.id] = thread
-            thread.start()
+                    # Start monitoring thread
+                    thread = threading.Thread(target=self._monitor_reminder, args=(reminder,), daemon=True)
+                    self.monitoring_threads[reminder.id] = thread
+                    thread.start()
 
             # Clear input fields
             self.title_entry.delete(0, tk.END)
@@ -305,10 +315,37 @@ class ReminderApp:
             # Save reminders to file
             self._save_reminders()
 
-            messagebox.showinfo("Success", "Reminder added successfully!")
+            messagebox.showinfo("Success", "Reminder added successfully!" if not hasattr(self, 'editing_reminder_id') else "Reminder updated successfully!")
         except ValueError:
             messagebox.showerror("Error", "Invalid time format. Use HH:MM (24-hour)")
+    def _edit_reminder(self, reminder_id):
+        """
+        Open the Add Reminder screen with the data of the selected reminder for editing.
+        """
+        with self.reminders_lock:
+            if reminder_id not in self.reminders:
+                messagebox.showerror("Error", "Reminder not found.")
+                return
 
+            reminder = self.reminders[reminder_id]
+
+        # Set fields with the reminder data
+        self.title_entry.delete(0, tk.END)
+        self.title_entry.insert(0, reminder.title)
+
+        self.description_entry.delete("1.0", tk.END)
+        self.description_entry.insert("1.0", reminder.description)
+
+        self.date_picker.set_date(reminder.trigger_time.strftime("%Y-%m-%d"))
+        self.time_entry.delete(0, tk.END)
+        self.time_entry.insert(0, reminder.trigger_time.strftime("%H:%M"))
+
+        # Store the reminder ID in an instance variable to indicate edit mode
+        self.editing_reminder_id = reminder_id
+        
+
+        # Show the Add Reminder screen
+        self._show_screen(self.add_screen)
     
     def _refresh_list(self):
         """
@@ -349,9 +386,13 @@ class ReminderApp:
                 )
                 time_label.pack(anchor="w", pady=(0, 5))
 
+               # Add a container for the buttons (to group them together)
+                button_container = tk.Frame(card_frame, bg="white")
+                button_container.pack(anchor="e", pady=(0, 5))
+
                 # Remove button
                 remove_button = tk.Button(
-                    card_frame,
+                    button_container,
                     text="Remove",
                     image=self.trash_icon,
                     compound="left",
@@ -359,7 +400,19 @@ class ReminderApp:
                     bg="#FF4C4C",
                     fg="white"
                 )
-                remove_button.pack(anchor="e", pady=(0, 5))
+                remove_button.pack(side=tk.LEFT, padx=5)
+
+                # Edit button
+                edit_button = tk.Button(
+                    button_container,
+                    text="Edit",
+                     image=self.edit_icon,
+                    compound="left",
+                    command=lambda r_id=reminder_id: self._edit_reminder(r_id),
+                    bg="#3797AC",
+                    fg="white"
+                )
+                edit_button.pack(side=tk.LEFT, padx=5)
 
         # Update the scroll region based on the size of the reminder_list
         self.canvas.update_idletasks()
