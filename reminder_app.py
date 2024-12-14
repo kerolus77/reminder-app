@@ -456,6 +456,7 @@ class ReminderApp:
         """
         print(f"Started monitoring thread for reminder ID: {reminder.id}")
         while not self.stop_event.is_set():
+            print(f"Started monitoring thread for reminder ID:{self.monitoring_threads[reminder.id]} {reminder.trigger_time}")
             current_time = datetime.now()
 
             # Check if reminder is inactive
